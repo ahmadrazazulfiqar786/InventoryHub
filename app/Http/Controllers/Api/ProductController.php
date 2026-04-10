@@ -7,6 +7,7 @@ use App\Http\Requests\ProductRequest;
 use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
 use OpenApi\Attributes as OA;
+use Throwable;
 
 #[OA\Tag(name: 'Products')]
 class ProductController extends Controller
@@ -23,12 +24,26 @@ class ProductController extends Controller
         tags: ['Products'],
         responses: [
             new OA\Response(response: 200, description: 'Product list'),
-            new OA\Response(response: 401, description: 'Unauthenticated')
+            new OA\Response(response: 401, description: 'Unauthenticated'),
+            new OA\Response(response: 500, description: 'Internal server error')
         ]
     )]
     public function index(): JsonResponse
     {
-        return response()->json($this->productService->getAllProducts());
+        try {
+            $products = $this->productService->getAllProducts();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Products fetched successfully',
+                'data' => $products,
+            ], 200);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Something went wrong while fetching products.',
+            ], 500);
+        }
     }
 
     #[OA\Post(
@@ -49,17 +64,30 @@ class ProductController extends Controller
         ),
         responses: [
             new OA\Response(response: 201, description: 'Product created'),
-            new OA\Response(response: 422, description: 'Validation error')
+            new OA\Response(response: 422, description: 'Validation error'),
+            new OA\Response(response: 500, description: 'Internal server error')
         ]
     )]
     public function store(ProductRequest $request): JsonResponse
     {
-        $product = $this->productService->createProduct($request->validated());
+        try {
+            $product = $this->productService->createProduct($request->validated());
 
-        return response()->json([
-            'message' => 'Product created successfully',
-            'data' => $product,
-        ], 201);
+            if (! $product) {
+                throw new \RuntimeException('Product creation failed.');
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Product created successfully',
+                'data' => $product,
+            ], 201);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Something went wrong while creating the product.',
+            ], 500);
+        }
     }
 
     #[OA\Get(
@@ -72,18 +100,33 @@ class ProductController extends Controller
         ],
         responses: [
             new OA\Response(response: 200, description: 'Product details'),
-            new OA\Response(response: 404, description: 'Product not found')
+            new OA\Response(response: 404, description: 'Product not found'),
+            new OA\Response(response: 500, description: 'Internal server error')
         ]
     )]
     public function show(int $id): JsonResponse
     {
-        $product = $this->productService->getProductById($id);
+        try {
+            $product = $this->productService->getProductById($id);
 
-        if (! $product) {
-            return response()->json(['message' => 'Product not found'], 404);
+            if (! $product) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Product not found',
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Product fetched successfully',
+                'data' => $product,
+            ], 200);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Something went wrong while fetching the product.',
+            ], 500);
         }
-
-        return response()->json($product);
     }
 
     #[OA\Put(
@@ -106,21 +149,33 @@ class ProductController extends Controller
         ),
         responses: [
             new OA\Response(response: 200, description: 'Product updated'),
-            new OA\Response(response: 404, description: 'Product not found')
+            new OA\Response(response: 404, description: 'Product not found'),
+            new OA\Response(response: 500, description: 'Internal server error')
         ]
     )]
     public function update(ProductRequest $request, int $id): JsonResponse
     {
-        $product = $this->productService->updateProduct($id, $request->validated());
+        try {
+            $product = $this->productService->updateProduct($id, $request->validated());
 
-        if (! $product) {
-            return response()->json(['message' => 'Product not found'], 404);
+            if (! $product) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Product not found',
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Product updated successfully',
+                'data' => $product,
+            ], 200);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Something went wrong while updating the product.',
+            ], 500);
         }
-
-        return response()->json([
-            'message' => 'Product updated successfully',
-            'data' => $product,
-        ]);
     }
 
     #[OA\Delete(
@@ -133,19 +188,31 @@ class ProductController extends Controller
         ],
         responses: [
             new OA\Response(response: 200, description: 'Product deleted'),
-            new OA\Response(response: 404, description: 'Product not found')
+            new OA\Response(response: 404, description: 'Product not found'),
+            new OA\Response(response: 500, description: 'Internal server error')
         ]
     )]
     public function destroy(int $id): JsonResponse
     {
-        $deleted = $this->productService->deleteProduct($id);
+        try {
+            $deleted = $this->productService->deleteProduct($id);
 
-        if (! $deleted) {
-            return response()->json(['message' => 'Product not found'], 404);
+            if (! $deleted) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Product not found',
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => true,
+                'message' => 'Product deleted successfully',
+            ], 200);
+        } catch (Throwable $e) {
+            return response()->json([
+                'status' => false,
+                'message' => 'Something went wrong while deleting the product.',
+            ], 500);
         }
-
-        return response()->json([
-            'message' => 'Product deleted successfully',
-        ]);
     }
 }
