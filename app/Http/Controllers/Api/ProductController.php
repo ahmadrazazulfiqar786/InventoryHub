@@ -4,16 +4,17 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProductRequest;
-use App\Services\ProductService;
+use App\Interfaces\ProductRepositoryInterface;
 use Illuminate\Http\JsonResponse;
 use OpenApi\Attributes as OA;
 use Throwable;
+use Exception;
 
 #[OA\Tag(name: 'Products')]
 class ProductController extends Controller
 {
     public function __construct(
-        protected ProductService $productService
+        protected ProductRepositoryInterface $productRepository
     ) {
     }
 
@@ -31,14 +32,14 @@ class ProductController extends Controller
     public function index(): JsonResponse
     {
         try {
-            $products = $this->productService->getAllProducts();
+            $products = $this->productRepository->getAll();
 
             return response()->json([
                 'status' => true,
                 'message' => 'Products fetched successfully',
                 'data' => $products,
             ], 200);
-        } catch (Throwable $e) {
+        } catch (Exception|Throwable $e) {
             return response()->json([
                 'status' => false,
                 'message' => 'Something went wrong while fetching products.',
@@ -71,10 +72,10 @@ class ProductController extends Controller
     public function store(ProductRequest $request): JsonResponse
     {
         try {
-            $product = $this->productService->createProduct($request->validated());
+            $product = $this->productRepository->create($request->validated());
 
             if (! $product) {
-                throw new \RuntimeException('Product creation failed.');
+                throw new Exception('Product creation failed.');
             }
 
             return response()->json([
@@ -82,7 +83,7 @@ class ProductController extends Controller
                 'message' => 'Product created successfully',
                 'data' => $product,
             ], 201);
-        } catch (Throwable $e) {
+        } catch (Exception|Throwable $e) {
             return response()->json([
                 'status' => false,
                 'message' => 'Something went wrong while creating the product.',
@@ -107,7 +108,7 @@ class ProductController extends Controller
     public function show(int $id): JsonResponse
     {
         try {
-            $product = $this->productService->getProductById($id);
+            $product = $this->productRepository->findById($id);
 
             if (! $product) {
                 return response()->json([
@@ -121,7 +122,7 @@ class ProductController extends Controller
                 'message' => 'Product fetched successfully',
                 'data' => $product,
             ], 200);
-        } catch (Throwable $e) {
+        } catch (Exception|Throwable $e) {
             return response()->json([
                 'status' => false,
                 'message' => 'Something went wrong while fetching the product.',
@@ -156,7 +157,7 @@ class ProductController extends Controller
     public function update(ProductRequest $request, int $id): JsonResponse
     {
         try {
-            $product = $this->productService->updateProduct($id, $request->validated());
+            $product = $this->productRepository->findById($id);
 
             if (! $product) {
                 return response()->json([
@@ -165,12 +166,14 @@ class ProductController extends Controller
                 ], 404);
             }
 
+            $updatedProduct = $this->productRepository->update($id, $request->validated());
+
             return response()->json([
                 'status' => true,
                 'message' => 'Product updated successfully',
-                'data' => $product,
+                'data' => $updatedProduct,
             ], 200);
-        } catch (Throwable $e) {
+        } catch (Exception|Throwable $e) {
             return response()->json([
                 'status' => false,
                 'message' => 'Something went wrong while updating the product.',
@@ -195,20 +198,22 @@ class ProductController extends Controller
     public function destroy(int $id): JsonResponse
     {
         try {
-            $deleted = $this->productService->deleteProduct($id);
+            $product = $this->productRepository->findById($id);
 
-            if (! $deleted) {
+            if (! $product) {
                 return response()->json([
                     'status' => false,
                     'message' => 'Product not found',
                 ], 404);
             }
 
+            $deleted = $this->productRepository->delete($id);
+
             return response()->json([
                 'status' => true,
                 'message' => 'Product deleted successfully',
             ], 200);
-        } catch (Throwable $e) {
+        } catch (Exception|Throwable $e) {
             return response()->json([
                 'status' => false,
                 'message' => 'Something went wrong while deleting the product.',
